@@ -6,8 +6,12 @@ START_POOL=""
 END_POOL=""
 HOST_OCTET="20"
 NETWORK_PREFIX="10.14"
-OUTPUT_DIR="/etc/nginx/sites-available"
-ENABLE_DIR="/etc/nginx/sites-enabled"
+
+HTTP_OUTPUT_DIR="/etc/nginx/sites-available"
+HTTP_ENABLE_DIR="/etc/nginx/sites-enabled"
+
+STREAM_OUTPUT_DIR="/etc/nginx/stream-conf.d"
+
 OVERWRITE=false
 ENABLE=false
 DRY_RUN=false
@@ -17,18 +21,24 @@ usage() {
 Usage: $0 --start <pool> --end <pool> [options]
 
 Required:
-  --start <n>             Start pool number
-  --end <n>               End pool number
+  --start <n>                  Start pool number
+  --end <n>                    End pool number
 
 Options:
-  --host-octet <n>        Backend host octet (default: 20)
-  --network-prefix <x.y>  Network prefix (default: 10.14)
-  --output-dir <path>     Output directory
-  --enable-dir <path>     Enable directory (default: /etc/nginx/sites-enabled)
-  --enable                Create symlinks in sites-enabled
-  --overwrite             Overwrite existing files
-  --dry-run               Print what would be done (no changes)
-  -h, --help              Show this help
+  --host-octet <n>             Backend host octet (default: 20)
+  --network-prefix <x.y>       Network prefix (default: 10.14)
+
+  --http-output-dir <path>     HTTP config output dir
+                               (default: /etc/nginx/sites-available)
+  --http-enable-dir <path>     HTTP enabled dir
+                               (default: /etc/nginx/sites-enabled)
+  --stream-output-dir <path>   Stream snippet output dir
+                               (default: /etc/nginx/stream-conf.d)
+
+  --enable                     Create symlinks in sites-enabled
+  --overwrite                  Overwrite existing files
+  --dry-run                    Print what would be done (no changes)
+  -h, --help                   Show this help
 EOF
 }
 
@@ -38,8 +48,9 @@ while [[ $# -gt 0 ]]; do
     --end) END_POOL="$2"; shift 2 ;;
     --host-octet) HOST_OCTET="$2"; shift 2 ;;
     --network-prefix) NETWORK_PREFIX="$2"; shift 2 ;;
-    --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
-    --enable-dir) ENABLE_DIR="$2"; shift 2 ;;
+    --http-output-dir) HTTP_OUTPUT_DIR="$2"; shift 2 ;;
+    --http-enable-dir) HTTP_ENABLE_DIR="$2"; shift 2 ;;
+    --stream-output-dir) STREAM_OUTPUT_DIR="$2"; shift 2 ;;
     --overwrite) OVERWRITE=true; shift ;;
     --enable) ENABLE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
@@ -55,24 +66,37 @@ if [[ -z "$START_POOL" || -z "$END_POOL" ]]; then
 fi
 
 if [[ "$DRY_RUN" == false ]]; then
-  mkdir -p "$OUTPUT_DIR"
-  [[ "$ENABLE" == true ]] && mkdir -p "$ENABLE_DIR"
+  mkdir -p "$HTTP_OUTPUT_DIR"
+  mkdir -p "$STREAM_OUTPUT_DIR"
+  [[ "$ENABLE" == true ]] && mkdir -p "$HTTP_ENABLE_DIR"
 fi
 
 for pool in $(seq "$START_POOL" "$END_POOL"); do
-  filename="${pool}.bleikervgs.no"
-  filepath="${OUTPUT_DIR}/${filename}"
+  domain="${pool}.bleikervgs.no"
   backend_ip="${NETWORK_PREFIX}.${pool}.${HOST_OCTET}"
 
-  if [[ -e "$filepath" && "$OVERWRITE" != true ]]; then
-    echo "Skipping existing file: $filepath"
-    continue
+  http_filename="${domain}"
+  http_filepath="${HTTP_OUTPUT_DIR}/${http_filename}"
+
+  stream_filename="${domain}.stream.conf"
+  stream_filepath="${STREAM_OUTPUT_DIR}/${stream_filename}"
+
+  if [[ "$OVERWRITE" != true ]]; then
+    if [[ -e "$http_filepath" ]]; then
+      echo "Skipping existing HTTP file: $http_filepath"
+    fi
+    if [[ -e "$stream_filepath" ]]; then
+      echo "Skipping existing stream file: $stream_filepath"
+    fi
+    if [[ -e "$http_filepath" || -e "$stream_filepath" ]]; then
+      continue
+    fi
   fi
 
-  config=$(cat <<EOF
+  http_config=$(cat <<EOF
 server {
     listen 80;
-    server_name ${pool}.bleikervgs.no;
+    server_name ${domain};
 
     location / {
         proxy_pass http://${backend_ip}:80;
@@ -90,17 +114,29 @@ server {
 EOF
 )
 
+  stream_config=$(cat <<EOF
+# ${domain}
+${domain} ${backend_ip}:443;
+EOF
+)
+
   if [[ "$DRY_RUN" == true ]]; then
-    echo "----- ${filepath} -----"
-    echo "$config"
+    echo "----- HTTP: ${http_filepath} -----"
+    echo "$http_config"
+    echo
+    echo "----- STREAM MAP ENTRY: ${stream_filepath} -----"
+    echo "$stream_config"
     echo
   else
-    echo "$config" > "$filepath"
-    echo "Wrote: $filepath"
+    echo "$http_config" > "$http_filepath"
+    echo "Wrote HTTP config: $http_filepath"
+
+    echo "$stream_config" > "$stream_filepath"
+    echo "Wrote stream map entry: $stream_filepath"
 
     if [[ "$ENABLE" == true ]]; then
-      ln -sfn "$filepath" "${ENABLE_DIR}/${filename}"
-      echo "Enabled: ${ENABLE_DIR}/${filename}"
+      ln -sfn "$http_filepath" "${HTTP_ENABLE_DIR}/${http_filename}"
+      echo "Enabled HTTP config: ${HTTP_ENABLE_DIR}/${http_filename}"
     fi
   fi
 done
@@ -110,5 +146,9 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "Dry run complete. No changes made."
 else
   echo "Done."
-  echo "Run: sudo nginx -t && sudo systemctl reload nginx"
+  echo "Remember:"
+  echo "  1. HTTP configs are in:   $HTTP_OUTPUT_DIR"
+  echo "  2. Stream map entries are in: $STREAM_OUTPUT_DIR"
+  echo "  3. Test nginx before reload:"
+  echo "     sudo nginx -t && sudo systemctl reload nginx"
 fi
