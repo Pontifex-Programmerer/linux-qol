@@ -54,8 +54,8 @@ do_enable() {
   local http_src="${HTTP_AVAILABLE}/${name}"
   local http_dst="${HTTP_ENABLED}/${name}"
 
-  local stream_src="${STREAM_AVAILABLE}/${name}.conf"
-  local stream_dst="${STREAM_ENABLED}/${name}.conf"
+  local stream_src="${STREAM_AVAILABLE}/${name}.stream.conf"
+  local stream_dst="${STREAM_ENABLED}/${name}.stream.conf"
 
   [[ -f "$http_src" ]] || { echo "Missing HTTP config: $http_src"; return 1; }
   [[ -f "$stream_src" ]] || { echo "Missing stream config: $stream_src"; return 1; }
