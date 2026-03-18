@@ -10,7 +10,7 @@ NETWORK_PREFIX="10.14"
 HTTP_OUTPUT_DIR="/etc/nginx/sites-available"
 HTTP_ENABLE_DIR="/etc/nginx/sites-enabled"
 
-STREAM_OUTPUT_DIR="/etc/nginx/stream-conf.d"
+STREAM_OUTPUT_DIR="/etc/nginx/streams-available"
 
 OVERWRITE=false
 ENABLE=false
