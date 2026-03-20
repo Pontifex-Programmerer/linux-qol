@@ -8,12 +8,9 @@ HOST_OCTET="20"
 NETWORK_PREFIX="10.14"
 
 HTTP_OUTPUT_DIR="/etc/nginx/sites-available"
-HTTP_ENABLE_DIR="/etc/nginx/sites-enabled"
-
 STREAM_OUTPUT_DIR="/etc/nginx/streams-available"
 
 OVERWRITE=false
-ENABLE=false
 DRY_RUN=false
 
 usage() {
@@ -30,12 +27,9 @@ Options:
 
   --http-output-dir <path>     HTTP config output dir
                                (default: /etc/nginx/sites-available)
-  --http-enable-dir <path>     HTTP enabled dir
-                               (default: /etc/nginx/sites-enabled)
   --stream-output-dir <path>   Stream snippet output dir
                                (default: /etc/nginx/streams-available)
 
-  --enable                     Create symlink in sites-enabled for HTTP config only
   --overwrite                  Overwrite existing files
   --dry-run                    Print what would be done (no changes)
   -h, --help                   Show this help
@@ -49,10 +43,8 @@ while [[ $# -gt 0 ]]; do
     --host-octet) HOST_OCTET="$2"; shift 2 ;;
     --network-prefix) NETWORK_PREFIX="$2"; shift 2 ;;
     --http-output-dir) HTTP_OUTPUT_DIR="$2"; shift 2 ;;
-    --http-enable-dir) HTTP_ENABLE_DIR="$2"; shift 2 ;;
     --stream-output-dir) STREAM_OUTPUT_DIR="$2"; shift 2 ;;
     --overwrite) OVERWRITE=true; shift ;;
-    --enable) ENABLE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1"; usage; exit 1 ;;
@@ -68,7 +60,6 @@ fi
 if [[ "$DRY_RUN" == false ]]; then
   mkdir -p "$HTTP_OUTPUT_DIR"
   mkdir -p "$STREAM_OUTPUT_DIR"
-  [[ "$ENABLE" == true ]] && mkdir -p "$HTTP_ENABLE_DIR"
 fi
 
 for pool in $(seq "$START_POOL" "$END_POOL"); do
@@ -134,11 +125,6 @@ EOF
 
     echo "$stream_config" > "$stream_filepath"
     echo "Wrote stream map entry: $stream_filepath"
-
-    if [[ "$ENABLE" == true ]]; then
-      ln -sfn "$http_filepath" "${HTTP_ENABLE_DIR}/${http_filename}"
-      echo "Enabled HTTP config: ${HTTP_ENABLE_DIR}/${http_filename}"
-    fi
   fi
 done
 
@@ -150,7 +136,7 @@ else
   echo "Remember:"
   echo "  1. HTTP configs are in:        $HTTP_OUTPUT_DIR"
   echo "  2. Stream map entries are in:  $STREAM_OUTPUT_DIR"
-  echo "  3. --enable in this script only enables HTTP"
+  echo "  3. Enable configs separately with proxy-pool-enable.sh"
   echo "  4. Test nginx before reload:"
   echo "     sudo nginx -t && sudo systemctl reload nginx"
 fi
