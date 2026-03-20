@@ -72,16 +72,23 @@ for pool in $(seq "$START_POOL" "$END_POOL"); do
   stream_filename="${domain}.stream.conf"
   stream_filepath="${STREAM_OUTPUT_DIR}/${stream_filename}"
 
+  write_http=true
+  write_stream=true
+
   if [[ "$OVERWRITE" != true ]]; then
     if [[ -e "$http_filepath" ]]; then
       echo "Skipping existing HTTP file: $http_filepath"
+      write_http=false
     fi
+
     if [[ -e "$stream_filepath" ]]; then
       echo "Skipping existing stream file: $stream_filepath"
+      write_stream=false
     fi
-    if [[ -e "$http_filepath" || -e "$stream_filepath" ]]; then
-      continue
-    fi
+  fi
+
+  if [[ "$write_http" == false && "$write_stream" == false ]]; then
+    continue
   fi
 
   http_config=$(cat <<EOF
@@ -113,18 +120,27 @@ EOF
 )
 
   if [[ "$DRY_RUN" == true ]]; then
-    echo "----- HTTP: ${http_filepath} -----"
-    echo "$http_config"
-    echo
-    echo "----- STREAM MAP ENTRY: ${stream_filepath} -----"
-    echo "$stream_config"
-    echo
-  else
-    echo "$http_config" > "$http_filepath"
-    echo "Wrote HTTP config: $http_filepath"
+    if [[ "$write_http" == true ]]; then
+      echo "----- HTTP: ${http_filepath} -----"
+      echo "$http_config"
+      echo
+    fi
 
-    echo "$stream_config" > "$stream_filepath"
-    echo "Wrote stream map entry: $stream_filepath"
+    if [[ "$write_stream" == true ]]; then
+      echo "----- STREAM MAP ENTRY: ${stream_filepath} -----"
+      echo "$stream_config"
+      echo
+    fi
+  else
+    if [[ "$write_http" == true ]]; then
+      echo "$http_config" > "$http_filepath"
+      echo "Wrote HTTP config: $http_filepath"
+    fi
+
+    if [[ "$write_stream" == true ]]; then
+      echo "$stream_config" > "$stream_filepath"
+      echo "Wrote stream map entry: $stream_filepath"
+    fi
   fi
 done
 
