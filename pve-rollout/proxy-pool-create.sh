@@ -33,9 +33,9 @@ Options:
   --http-enable-dir <path>     HTTP enabled dir
                                (default: /etc/nginx/sites-enabled)
   --stream-output-dir <path>   Stream snippet output dir
-                               (default: /etc/nginx/stream-conf.d)
+                               (default: /etc/nginx/streams-available)
 
-  --enable                     Create symlinks in sites-enabled
+  --enable                     Create symlink in sites-enabled for HTTP config only
   --overwrite                  Overwrite existing files
   --dry-run                    Print what would be done (no changes)
   -h, --help                   Show this help
@@ -96,7 +96,7 @@ for pool in $(seq "$START_POOL" "$END_POOL"); do
   http_config=$(cat <<EOF
 server {
     listen 80;
-    server_name ${domain};
+    server_name ${domain} *.${domain};
 
     location / {
         proxy_pass http://${backend_ip}:80;
@@ -117,6 +117,7 @@ EOF
   stream_config=$(cat <<EOF
 # ${domain}
 ${domain} ${backend_ip}:443;
+*.${domain} ${backend_ip}:443;
 EOF
 )
 
@@ -147,8 +148,9 @@ if [[ "$DRY_RUN" == true ]]; then
 else
   echo "Done."
   echo "Remember:"
-  echo "  1. HTTP configs are in:   $HTTP_OUTPUT_DIR"
-  echo "  2. Stream map entries are in: $STREAM_OUTPUT_DIR"
-  echo "  3. Test nginx before reload:"
+  echo "  1. HTTP configs are in:        $HTTP_OUTPUT_DIR"
+  echo "  2. Stream map entries are in:  $STREAM_OUTPUT_DIR"
+  echo "  3. --enable in this script only enables HTTP"
+  echo "  4. Test nginx before reload:"
   echo "     sudo nginx -t && sudo systemctl reload nginx"
 fi
