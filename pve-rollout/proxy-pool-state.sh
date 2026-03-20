@@ -13,21 +13,36 @@ NO_RELOAD=false
 
 usage() {
   cat <<EOF
-Usage:
+proxy-pool-state.sh
+
+Enable, disable, or inspect nginx pool configuration state.
+
+USAGE:
   $0 <enable|disable|status> <pool|range|pool...> [options]
 
-Examples:
+EXAMPLES:
   $0 enable 3
   $0 disable 3
-  $0 enable 1-10
-  $0 enable 3 5 7
   $0 status 3
+  $0 enable 1-10
+  $0 disable 3 5 7
   $0 enable 1-5 --dry-run
+  $0 disable 1-5 --no-reload
 
-Options:
+OPTIONS:
   --dry-run     Show what would be done
   --no-reload   Do not run nginx -t / reload
   -h, --help    Show this help
+
+NOTES:
+  - enable creates symlinks in:
+      $HTTP_ENABLED
+      $STREAM_ENABLED
+  - disable removes symlinks from:
+      $HTTP_ENABLED
+      $STREAM_ENABLED
+  - status shows whether configs exist in "available" and whether symlinks
+    exist in "enabled"
 EOF
 }
 
@@ -80,6 +95,8 @@ do_disable() {
   if [[ "$DRY_RUN" == true ]]; then
     [[ -L "$http_dst" ]] && echo "Would remove HTTP symlink:   $http_dst"
     [[ -L "$stream_dst" ]] && echo "Would remove STREAM symlink: $stream_dst"
+    [[ ! -L "$http_dst" ]] && echo "HTTP not enabled:            $http_dst"
+    [[ ! -L "$stream_dst" ]] && echo "STREAM not enabled:          $stream_dst"
   else
     [[ -L "$http_dst" ]] && rm -f "$http_dst"
     [[ -L "$stream_dst" ]] && rm -f "$stream_dst"
