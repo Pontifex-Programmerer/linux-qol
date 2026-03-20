@@ -75,7 +75,7 @@ do_disable() {
   local name="${pool}.bleikervgs.no"
 
   local http_dst="${HTTP_ENABLED}/${name}"
-  local stream_dst="${STREAM_ENABLED}/${name}.conf"
+  local stream_dst="${STREAM_ENABLED}/${name}.stream.conf"
 
   if [[ "$DRY_RUN" == true ]]; then
     [[ -L "$http_dst" ]] && echo "Would remove HTTP symlink:   $http_dst"
@@ -94,8 +94,8 @@ do_status() {
   local http_src="${HTTP_AVAILABLE}/${name}"
   local http_dst="${HTTP_ENABLED}/${name}"
 
-  local stream_src="${STREAM_AVAILABLE}/${name}.conf"
-  local stream_dst="${STREAM_ENABLED}/${name}.conf"
+  local stream_src="${STREAM_AVAILABLE}/${name}.stream.conf"
+  local stream_dst="${STREAM_ENABLED}/${name}.stream.conf"
 
   echo "Pool $pool"
   [[ -f "$http_src" ]] && echo "  HTTP available:   yes" || echo "  HTTP available:   no"
